@@ -1,0 +1,33 @@
+name: On-Time Submission Grading
+
+on:
+  push:
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    outputs:
+      score: ${{ steps.check.outputs.score }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deadline
+        id: check
+        run: |
+          DEADLINE="2026-02-28T15:20:00Z"
+          COMMIT_TIME=$(git log -1 --format=%cI)
+
+          if [[ "$COMMIT_TIME" < "$DEADLINE" ]]; then
+            echo "score=10" >> $GITHUB_OUTPUT
+          else
+            echo "score=0" >> $GITHUB_OUTPUT
+          fi
+
+  report:
+    needs: grade
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send grade to Classroom
+        uses: classroom-resources/autograding-grading-reporter@v1
+        with:
+          runners: grade
