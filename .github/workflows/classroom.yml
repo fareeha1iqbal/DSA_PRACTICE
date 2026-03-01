@@ -7,17 +7,31 @@ jobs:
   grade:
     runs-on: ubuntu-latest
     outputs:
-      score: ${{ steps.check.outputs.score }}
+      score: ${{ steps.setscore.outputs.score }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check deadline
-        id: check
+      - name: Determine On-Time Score
+        id: setscore
         run: |
-          DEADLINE="2026-02-28T15:20:00Z"
+          # Deadline in UTC
+          DEADLINE_UTC="2026-02-28T15:20:00Z"  # 28-Feb-2026 8:20 PM PKT = 15:20 UTC
+
+          # Get timestamp of latest commit in UTC
           COMMIT_TIME=$(git log -1 --format=%cI)
 
-          if [[ "$COMMIT_TIME" < "$DEADLINE" ]]; then
+          # If no commits, assign 0
+          if [ -z "$COMMIT_TIME" ]; then
+            echo "score=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Convert both to seconds since epoch
+          DEADLINE_SEC=$(date -d "$DEADLINE_UTC" +%s)
+          COMMIT_SEC=$(date -d "$COMMIT_TIME" +%s)
+
+          # Compare
+          if [ "$COMMIT_SEC" -le "$DEADLINE_SEC" ]; then
             echo "score=10" >> $GITHUB_OUTPUT
           else
             echo "score=0" >> $GITHUB_OUTPUT
@@ -27,7 +41,7 @@ jobs:
     needs: grade
     runs-on: ubuntu-latest
     steps:
-      - name: Send grade to Classroom
+      - name: Report Grade to Classroom
         uses: classroom-resources/autograding-grading-reporter@v1
         with:
           runners: grade
